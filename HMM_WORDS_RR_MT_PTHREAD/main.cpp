@@ -16,8 +16,8 @@
 #include <float.h>
 
 #include <algorithm>
-#include <unordered_set>
-#include <unordered_map>
+#include <set>
+#include <map>
 #include <sstream>
 
 using std::string;
@@ -76,7 +76,7 @@ public:
 
 	void init(vector<int> _obs, vector<string> _alphabet, int _N, int seed);
 
-	string genBest(int t);
+	string genRand(int genLength);
 };
 
 HMM::HMM()
@@ -489,42 +489,76 @@ void HMM::Run()
 	}
 }
 
-string HMM::genBest(int t)
+string HMM::genRand(int genLength)
 {
-	/*
-	for (int j = 0; j < t; j++)
-	{
-		double maxGamma = 0;
-		for (int i = 0; i < N; i++)
-		{
-			maxGamma = std::max(maxGamma, gamma[j][i]);
-		}
-		cout << maxGamma << " ";
-	}
-	*/
-
 	string output = "";
 
-	for (int j = 0; j < t; j++)
+	unsigned seed = std::chrono::system_clock::now().time_since_epoch().count();
+	std::uniform_real_distribution<double> unif(0.0, 1.0);
+	std::default_random_engine generator(seed);
+
+	//choose random by calculating a rand number, then calculating the cdf for each row until the cdf >= the rand number
+	double cdf = 0.0;
+	double rand = unif(generator);
+
+	//pick first state
+	int curState = 0;
+	for (int i = 0; i < pi.size(); i++)
 	{
-		double denom = 0.0;
-		for (int i = 0; i < N; i++)
+		cdf += pi[i];
+		if (cdf >= rand)
 		{
-			denom += alpha[T - 1][i];
+			curState = i;
+			break;
+		}
+	}
+
+	cdf = 0.0;
+	rand = unif(generator);
+	//pick an observation from that init state
+	for (int i = 0; i < b[curState].size(); i++)
+	{
+		cdf += b[curState][i];
+		if (cdf >= rand)
+		{
+			output += alphabet[i] + " ";
+			break;
+		}
+	}
+
+	//generate the rest
+	for (int i = 1; i < genLength; i++)
+	{
+		//pick next state
+		cdf = 0.0;
+		rand = unif(generator);
+		for (int i = 0; i < a[curState].size(); i++)
+		{
+			cdf += a[curState][i];
+			if (cdf >= rand)
+			{
+				curState = i;
+				break;
+			}
 		}
 
-		double maxGamma = 0.0;
-		for (int i = 0; i < N; i++)
+		//pick an observation from that state
+		cdf = 0.0;
+		rand = unif(generator);
+		for (int i = 0; i < b[curState].size(); i++)
 		{
-			maxGamma = std::max(maxGamma, (alpha[j][i]*beta[j][i]) / denom);
+			cdf += b[curState][i];
+			if (cdf >= rand)
+			{
+				output += alphabet[i] + " ";
+				break;
+			}
 		}
-		cout << maxGamma << " ";
-		//output += alphabet[obs[(int)maxGamma]] + " ";
-		//output += alphabet[round(maxGamma)] + " ";
 	}
 
 	return output;
 }
+
 
 vector<HMM> hmms;
 std::vector<int> obs;
@@ -604,8 +638,8 @@ int main(int argc, char* argv[])
 		dataVec.resize(maxWords);
 	}
 
-	std::unordered_set<string> alphabetSet(dataVec.begin(), dataVec.end());
-	std::unordered_map<string, int> alphabetMap;
+	std::set<string> alphabetSet(dataVec.begin(), dataVec.end());
+	std::map<string, int> alphabetMap;
 	int alphabetSize = 0;
 	for (string s : alphabetSet) {
 		alphabetMap[s] = alphabetSize;
@@ -689,7 +723,13 @@ int main(int argc, char* argv[])
 	cout << "-----FINAL-----\n";
 	//Console.WriteLine("Key: " + key);
 	hmms[curHighest].PrintMatrices();
-	cout << hmms[curHighest].genBest(obs.size()) << "\n";
+	//cout << hmms[curHighest].genBest(obs.size()) << "\n";
+
+	for (int i = 0; i < 25; ++i)
+	{
+		cout << hmms[curHighest].genRand(100) << "\n\n";
+	}
+	
 
 	std::cout << "Execution took " << elapsedTime(start) << ".\n\n";
 
