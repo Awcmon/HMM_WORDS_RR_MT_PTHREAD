@@ -16,15 +16,15 @@
 #include <float.h>
 
 #include <algorithm>
-#include <set>
-#include <map>
+#include <unordered_set>
+#include <unordered_map>
 #include <sstream>
 
 using std::string;
 using std::cout;
 using std::vector;
 
-using std::map;
+//using std::map;
 using std::tuple;
 
 class HMM
@@ -76,7 +76,7 @@ public:
 
 	void init(vector<int> _obs, vector<string> _alphabet, int _N, int seed);
 
-
+	string genBest(int t);
 };
 
 HMM::HMM()
@@ -489,6 +489,43 @@ void HMM::Run()
 	}
 }
 
+string HMM::genBest(int t)
+{
+	/*
+	for (int j = 0; j < t; j++)
+	{
+		double maxGamma = 0;
+		for (int i = 0; i < N; i++)
+		{
+			maxGamma = std::max(maxGamma, gamma[j][i]);
+		}
+		cout << maxGamma << " ";
+	}
+	*/
+
+	string output = "";
+
+	for (int j = 0; j < t; j++)
+	{
+		double denom = 0.0;
+		for (int i = 0; i < N; i++)
+		{
+			denom += alpha[T - 1][i];
+		}
+
+		double maxGamma = 0.0;
+		for (int i = 0; i < N; i++)
+		{
+			maxGamma = std::max(maxGamma, (alpha[j][i]*beta[j][i]) / denom);
+		}
+		cout << maxGamma << " ";
+		//output += alphabet[obs[(int)maxGamma]] + " ";
+		//output += alphabet[round(maxGamma)] + " ";
+	}
+
+	return output;
+}
+
 vector<HMM> hmms;
 std::vector<int> obs;
 vector<string> alphabet;
@@ -567,8 +604,8 @@ int main(int argc, char* argv[])
 		dataVec.resize(maxWords);
 	}
 
-	std::set<string> alphabetSet(dataVec.begin(), dataVec.end());
-	std::map<string, int> alphabetMap;
+	std::unordered_set<string> alphabetSet(dataVec.begin(), dataVec.end());
+	std::unordered_map<string, int> alphabetMap;
 	int alphabetSize = 0;
 	for (string s : alphabetSet) {
 		alphabetMap[s] = alphabetSize;
@@ -652,6 +689,7 @@ int main(int argc, char* argv[])
 	cout << "-----FINAL-----\n";
 	//Console.WriteLine("Key: " + key);
 	hmms[curHighest].PrintMatrices();
+	cout << hmms[curHighest].genBest(obs.size()) << "\n";
 
 	std::cout << "Execution took " << elapsedTime(start) << ".\n\n";
 
